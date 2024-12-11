@@ -1,0 +1,86 @@
+import React, { useState, useEffect } from "react";
+import { Button, FlatList, Text, TextInput, View } from "react-native";
+import { openRealm, JournalEntrySchema } from "./JournalEntry";
+
+const App = () => {
+  const [realm, setRealm] = useState(null);
+  const [entries, setEntries] = useState([]);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+
+  useEffect(() => {
+    const initializeRealm = async () => {
+      const realmInstance = await openRealm();
+      setRealm(realmInstance);
+    };
+    
+    initializeRealm();
+
+    return () => {
+      if (realm) {
+        realm.close();
+      }
+    };
+  }, []);
+
+  // Add a new journal entry to Realm
+  const addEntry = () => {
+    if (realm && title && content) {
+      realm.write(() => {
+        realm.create("JournalEntry", {
+          _id: new Realm.BSON.ObjectId(),
+          title,
+          content,
+          createdAt: new Date(),
+        });
+      });
+      setTitle("");
+      setContent("");
+      loadEntries();
+    }
+  };
+
+  // Load all journal entries from Realm
+  const loadEntries = () => {
+    if (realm) {
+      const allEntries = realm.objects("JournalEntry");
+      setEntries(allEntries);
+    }
+  };
+
+  useEffect(() => {
+    loadEntries();
+  }, [realm]);
+
+  return (
+    <View style={{ padding: 20 }}>
+      <TextInput
+        value={title}
+        onChangeText={setTitle}
+        placeholder="Title"
+        style={{ height: 40, borderColor: 'gray', borderWidth: 1, marginBottom: 10 }}
+      />
+      <TextInput
+        value={content}
+        onChangeText={setContent}
+        placeholder="Content"
+        style={{ height: 80, borderColor: 'gray', borderWidth: 1, marginBottom: 10 }}
+        multiline
+      />
+      <Button title="Add Journal Entry" onPress={addEntry} />
+      <FlatList
+        data={entries}
+        keyExtractor={(item) => item._id.toString()}
+        renderItem={({ item }) => (
+          <View style={{ marginTop: 20 }}>
+            <Text style={{ fontWeight: 'bold' }}>{item.title}</Text>
+            <Text>{item.content}</Text>
+            <Text>{item.createdAt.toString()}</Text>
+          </View>
+        )}
+      />
+    </View>
+  );
+};
+
+export default App;
